@@ -1,0 +1,65 @@
+name: Construire l'APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Préparer android/
+        run: bash tool/prepare_android.sh
+
+      - name: Dépendances
+        run: flutter pub get
+
+      - name: Icône de l'app
+        run: dart run flutter_launcher_icons
+
+      - name: Analyse du code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Tests
+        run: flutter test
+
+      - name: Clé de signature (toujours la même, pour pouvoir mettre à jour l'app)
+        run: |
+          mkdir -p ~/.android
+          base64 -d .ci/signing-key.b64 > ~/.android/debug.keystore
+
+      - name: Construire l'APK
+        run: flutter build apk --release
+
+      - name: Renommer
+        run: cp build/app/outputs/flutter-apk/app-release.apk Calculatrice-v1.0.${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Calculatrice-apk
+          path: Calculatrice-v1.0.${{ github.run_number }}.apk
+
+      - name: Publier dans "Releases"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Calculatrice v1.0.${{ github.run_number }}
+          body: APK à installer sur Android. Téléchargez le fichier .apk ci-dessous depuis votre téléphone.
+          files: Calculatrice-v1.0.${{ github.run_number }}.apk
