@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app.dart';
 import '../core/money.dart';
+import '../data/ledger.dart';
 import '../data/models.dart';
 import 'client_chat_screen.dart';
 import 'opening_screen.dart';
@@ -20,9 +21,8 @@ class DashboardTab extends StatelessWidget {
     final theme = Theme.of(context);
     final today = dayKey(DateTime.now());
     final summary = store.summaryOf(today);
-    final cash = summary.closing;
     final debts = store.debtTotals;
-    final recent = store.txns.reversed.take(6).toList();
+    final recent = store.txns.reversed.take(8).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -36,119 +36,35 @@ class DashboardTab extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showTxnForm(context),
-        icon: const Icon(Icons.currency_exchange),
-        label: const Text('Nouvelle vente'),
-      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           SectionTitle(
-            'Caisse · ${formatDay(DateTime.now())}',
-            trailing: store.todayOpened
-                ? TextButton(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OpeningScreen())),
-                    child: const Text('Modifier'),
-                  )
-                : null,
+            formatDay(DateTime.now()),
+            trailing: TextButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OpeningScreen())),
+              icon: const Icon(Icons.wb_sunny_outlined, size: 18),
+              label: Text(store.todayOpened ? 'Caisse du matin' : 'Noter la caisse'),
+            ),
           ),
           if (!store.todayOpened)
-            Card(
-              color: theme.colorScheme.primaryContainer,
-              child: ListTile(
-                leading: const Icon(Icons.wb_sunny_outlined),
-                title: const Text('Ouvrir la journée'),
-                subtitle: const Text('Notez votre caisse du matin et les taux du jour'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OpeningScreen())),
-              ),
-            )
-          else
-            Row(
-              children: [
-                for (final c in Currency.values) ...[
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(c.label, style: TextStyle(color: currencyColor(c), fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 6),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                formatNumber(cash[c], c),
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: cash[c] < 0 ? Colors.red : null,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text('Matin : ${formatNumber(summary.opening[c], c)}', style: theme.textTheme.bodySmall),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (c != Currency.values.last) const SizedBox(width: 8),
-                ],
-              ],
-            ),
-
-          SectionTitle(
-            'Taux du jour',
-            trailing: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const OpeningScreen(ratesOnly: true)),
-              ),
-              child: const Text('Modifier'),
-            ),
-          ),
-          Card(
-            child: Column(
-              children: [
-                for (final p in CurrencyPair.all)
-                  ListTile(
-                    dense: true,
-                    title: Text('1 ${p.base.label} en ${p.quote.label}'),
-                    trailing: Text(
-                      'Achat ${_r(store.rate(p, buy: true))}   ·   Vente ${_r(store.rate(p, buy: false))}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          const SectionTitle('Aujourd\'hui'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${summary.exchangeCount} vente(s) de devises', style: theme.textTheme.titleSmall),
-                  const SizedBox(height: 10),
-                  const Text('Entrées'),
-                  const SizedBox(height: 4),
-                  AmountChips(amounts: summary.cashIn),
-                  const SizedBox(height: 10),
-                  const Text('Sorties'),
-                  const SizedBox(height: 4),
-                  AmountChips(amounts: summary.cashOut),
-                ],
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                color: theme.colorScheme.primaryContainer,
+                child: ListTile(
+                  leading: const Icon(Icons.wb_sunny_outlined),
+                  title: const Text('Notez votre argent du matin'),
+                  subtitle: const Text('FCFA, dollars et euros, chacun à part'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OpeningScreen())),
+                ),
               ),
             ),
-          ),
+          for (final c in Currency.values) ...[
+            _CurrencyCard(currency: c, summary: summary),
+            const SizedBox(height: 12),
+          ],
 
           SectionTitle('Dettes', trailing: TextButton(onPressed: () => onOpenTab(1), child: const Text('Clients'))),
           Card(
@@ -192,6 +108,103 @@ class DashboardTab extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _r(double? v) => v == null ? '—' : formatRate(v);
+/// Un bloc par devise : ce que j'ai maintenant, le matin, les entrées et sorties du jour,
+/// et les boutons pour noter une entrée ou une sortie dans cette devise.
+class _CurrencyCard extends StatelessWidget {
+  const _CurrencyCard({required this.currency, required this.summary});
+  final Currency currency;
+  final DaySummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = currency;
+    final theme = Theme.of(context);
+    final color = currencyColor(c);
+    final now = summary.closing[c];
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: color.withValues(alpha: 0.10),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Row(
+              children: [
+                Text(currencyName(c), style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+                const Spacer(),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      formatMoney(now, c),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: now < 0 ? Colors.red : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+            child: Row(
+              children: [
+                _figure('Matin', summary.opening[c], c, null),
+                _figure('Entrées', summary.cashIn[c], c, Colors.green.shade700, prefix: '+'),
+                _figure('Sorties', summary.cashOut[c], c, Colors.red.shade700, prefix: '−'),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.green.shade700),
+                    onPressed: () => showTxnForm(context, mode: EntryMode.cashIn, currency: c),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Entrée'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade700),
+                    onPressed: () => showTxnForm(context, mode: EntryMode.cashOut, currency: c),
+                    icon: const Icon(Icons.remove, size: 18),
+                    label: const Text('Sortie'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _figure(String label, int value, Currency c, Color? color, {String prefix = ''}) => Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${value == 0 ? '' : prefix}${formatNumber(value, c)}',
+                style: TextStyle(fontWeight: FontWeight.w600, color: color),
+              ),
+            ),
+          ],
+        ),
+      );
 }

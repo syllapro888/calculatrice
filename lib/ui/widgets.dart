@@ -12,6 +12,17 @@ Color currencyColor(Currency c) => switch (c) {
       Currency.eur => const Color(0xFF6A1B9A),
     };
 
+String currencyName(Currency c) => switch (c) {
+      Currency.xaf => 'Francs CFA',
+      Currency.usd => 'Dollars (USD)',
+      Currency.eur => 'Euros (EUR)',
+    };
+
+String formatMonth(DateTime d) {
+  final s = DateFormat('MMMM y', 'fr').format(d);
+  return s[0].toUpperCase() + s.substring(1);
+}
+
 String formatTime(DateTime d) => DateFormat.Hm('fr').format(d);
 
 String formatDay(DateTime d) {

@@ -7,12 +7,16 @@ import 'widgets.dart';
 /// Phrase courte qui décrit une opération.
 String txnTitle(Txn t) {
   switch (t.kind) {
+    case TxnKind.cashIn:
+      return 'Entrée ${formatMoney(t.fromAmt, t.fromCur)}';
+    case TxnKind.cashOut:
+      return 'Sortie ${formatMoney(t.fromAmt, t.fromCur)}';
     case TxnKind.exchange:
       return 'Change ${formatMoney(t.fromAmt, t.fromCur)} → ${formatMoney(t.toAmt, t.toCur ?? Currency.xaf)}';
     case TxnKind.received:
-      return 'Reçu ${formatMoney(t.fromAmt, t.fromCur)}';
+      return 'Remboursement reçu ${formatMoney(t.fromAmt, t.fromCur)}';
     case TxnKind.given:
-      return 'Donné ${formatMoney(t.fromAmt, t.fromCur)}';
+      return 'Remboursement donné ${formatMoney(t.fromAmt, t.fromCur)}';
     case TxnKind.debt:
       return t.fromAmt >= 0
           ? 'Dette : me doit ${formatMoney(t.fromAmt, t.fromCur)}'
@@ -33,16 +37,20 @@ String? txnDetail(Txn t) {
 }
 
 IconData txnIcon(Txn t) => switch (t.kind) {
+      TxnKind.cashIn => Icons.south_west,
+      TxnKind.cashOut => Icons.north_east,
       TxnKind.exchange => Icons.currency_exchange,
-      TxnKind.received => Icons.south_west,
-      TxnKind.given => Icons.north_east,
+      TxnKind.received => Icons.call_received,
+      TxnKind.given => Icons.call_made,
       TxnKind.debt => Icons.receipt_long,
     };
 
 Color txnColor(Txn t) => switch (t.kind) {
+      TxnKind.cashIn => const Color(0xFF2E7D32),
+      TxnKind.cashOut => const Color(0xFFC62828),
       TxnKind.exchange => const Color(0xFF1565C0),
-      TxnKind.received => const Color(0xFF2E7D32),
-      TxnKind.given => const Color(0xFFC62828),
+      TxnKind.received => const Color(0xFF00796B),
+      TxnKind.given => const Color(0xFFAD1457),
       TxnKind.debt => const Color(0xFFEF6C00),
     };
 
@@ -83,7 +91,12 @@ class TxnBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final mine = txn.kind != TxnKind.received && !(txn.kind == TxnKind.debt && txn.fromAmt < 0);
+    // À droite : ce qui sort de chez moi. À gauche : ce que je reçois.
+    final mine = switch (txn.kind) {
+      TxnKind.cashOut || TxnKind.given || TxnKind.exchange => true,
+      TxnKind.debt => txn.fromAmt >= 0,
+      _ => false,
+    };
     final bg = mine
         ? (dark ? const Color(0xFF005C4B) : const Color(0xFFD9FDD3))
         : (dark ? const Color(0xFF202C33) : Colors.white);

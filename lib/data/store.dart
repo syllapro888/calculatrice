@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/money.dart';
@@ -11,10 +10,9 @@ const _uuid = Uuid();
 
 /// Toutes les données de l'app, en mémoire, sauvegardées dans la base locale.
 class AppStore extends ChangeNotifier {
-  AppStore(this._db, this._prefs);
+  AppStore(this._db);
 
   final LocalDb _db;
-  final SharedPreferences _prefs;
 
   final Map<String, Client> _clients = {};
   final Map<String, Txn> _txns = {};
@@ -23,8 +21,8 @@ class AppStore extends ChangeNotifier {
   /// Appelé après chaque modification locale (pour lancer la synchro).
   VoidCallback? onLocalChange;
 
-  static Future<AppStore> load(LocalDb db, SharedPreferences prefs) async {
-    final s = AppStore(db, prefs);
+  static Future<AppStore> load(LocalDb db) async {
+    final s = AppStore(db);
     await s.reload();
     return s;
   }
@@ -124,29 +122,31 @@ class AppStore extends ChangeNotifier {
     return set.toList()..sort((a, b) => b.compareTo(a));
   }
 
-  // ---------- Taux du jour ----------
+  // ---------- Historique ----------
 
-  double? rate(CurrencyPair pair, {required bool buy}) =>
-      _prefs.getDouble('rate_${pair.key}_${buy ? 'buy' : 'sell'}');
-
-  Future<void> setRate(CurrencyPair pair, {required bool buy, required double? value}) async {
-    final key = 'rate_${pair.key}_${buy ? 'buy' : 'sell'}';
-    if (value == null) {
-      await _prefs.remove(key);
-    } else {
-      await _prefs.setDouble(key, value);
-    }
-    notifyListeners();
+  /// Opérations entre [start] (inclus) et [end] (exclu).
+  List<Txn> txnsBetween(DateTime start, DateTime end) {
+    final s = start.millisecondsSinceEpoch;
+    final e = end.millisecondsSinceEpoch;
+    return txns.where((t) => t.createdAt >= s && t.createdAt < e).toList();
   }
 
-  /// Taux proposé pour un change où le client donne [from] et reçoit [to].
-  /// Si le client me donne la devise forte, je l'achète (taux achat) ; sinon je la vends.
-  double? suggestedRate(Currency from, Currency to) {
-    if (from == to) return null;
-    final pair = CurrencyPair.of(from, to);
-    final buy = from == pair.base;
-    return rate(pair, buy: buy) ?? rate(pair, buy: !buy);
+  List<Txn> txnsOfMonth(int year, int month) => txnsBetween(DateTime(year, month), DateTime(year, month + 1));
+
+  /// Vrai si l'opération concerne la devise [c] (mouvement ou dette).
+  static bool touches(Txn t, Currency c) => t.fromCur == c || t.toCur == c;
+
+  /// Recherche dans le nom du client et la note.
+  bool matches(Txn t, String query) {
+    if (query.isEmpty) return true;
+    final q = query.toLowerCase();
+    return clientName(t.clientId).toLowerCase().contains(q) ||
+        t.note.toLowerCase().contains(q) ||
+        (client(t.clientId)?.phone.contains(q) ?? false);
   }
+
+  /// Toutes les entrées / sorties d'un client, par devise.
+  Flows flowsOfClient(String clientId) => Flows(txnsOfClient(clientId));
 
   // ---------- Écriture ----------
 

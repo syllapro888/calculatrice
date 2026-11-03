@@ -53,14 +53,20 @@ bool _bool(Object? v) => v == true || v == 1;
 
 /// Types d'opérations.
 enum TxnKind {
-  /// Vente / change : le client donne [fromAmt] en [fromCur] et reçoit [toAmt] en [toCur].
+  /// Entrée d'argent dans la caisse (ne touche pas aux dettes).
+  cashIn('in', 'Entrée'),
+
+  /// Sortie d'argent de la caisse (ne touche pas aux dettes).
+  cashOut('out', 'Sortie'),
+
+  /// Ancien type (version 1) : change avec taux. Gardé pour afficher l'historique.
   exchange('exchange', 'Change'),
 
-  /// Le client me donne de l'argent (paiement d'une dette, dépôt...).
-  received('received', 'Reçu du client'),
+  /// Le client me rembourse : entre dans la caisse et diminue sa dette.
+  received('received', 'Il m\'a remboursé'),
 
-  /// Je donne de l'argent au client (prêt, remboursement...).
-  given('given', 'Donné au client'),
+  /// Je rembourse le client (ou je lui prête) : sort de la caisse.
+  given('given', 'Je lui ai remboursé'),
 
   /// Dette notée sans mouvement de caisse. fromAmt > 0 : le client me doit ;
   /// fromAmt < 0 : je dois au client.

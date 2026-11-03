@@ -129,16 +129,10 @@ class _SettingsTabState extends State<SettingsTab> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.wb_sunny_outlined),
-                  title: const Text('Caisse du matin et taux'),
+                  title: const Text('Caisse du matin'),
+                  subtitle: const Text('FCFA, dollars et euros'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OpeningScreen())),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.currency_exchange),
-                  title: const Text('Taux du jour'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (_) => const OpeningScreen(ratesOnly: true))),
                 ),
               ],
             ),
@@ -163,7 +157,7 @@ class _SettingsTabState extends State<SettingsTab> {
             ),
           ),
           const SizedBox(height: 24),
-          Center(child: Text('Version 1.0.0', style: theme.textTheme.bodySmall)),
+          Center(child: Text('Version 1.1', style: theme.textTheme.bodySmall)),
         ],
       ),
     );

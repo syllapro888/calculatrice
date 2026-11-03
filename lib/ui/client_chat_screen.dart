@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../app.dart';
+import '../core/money.dart';
+import '../data/ledger.dart';
 import '../data/models.dart';
 import 'client_form.dart';
 import 'txn_form.dart';
@@ -28,6 +30,7 @@ class ClientChatScreen extends StatelessWidget {
         }
         final txns = store.txnsOfClient(clientId).reversed.toList();
         final balance = store.balanceOf(clientId);
+        final flows = store.flowsOfClient(clientId);
         final theme = Theme.of(context);
         final dark = theme.brightness == Brightness.dark;
 
@@ -81,7 +84,19 @@ class ClientChatScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                   child: Row(
                     children: [
-                      Expanded(child: BalanceText(balance: balance)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            BalanceText(balance: balance),
+                            if (!flows.cashIn.isZero || !flows.cashOut.isZero) ...[
+                              const SizedBox(height: 4),
+                              _totals('Reçu de lui', flows.cashIn, Colors.green.shade700),
+                              _totals('Donné à lui', flows.cashOut, Colors.red.shade700),
+                            ],
+                          ],
+                        ),
+                      ),
                       if (client.note.isNotEmpty)
                         Tooltip(message: client.note, child: const Icon(Icons.sticky_note_2_outlined, size: 20)),
                     ],
@@ -122,10 +137,9 @@ class ClientChatScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                     child: Row(
                       children: [
-                        _action(context, 'Vente', Icons.currency_exchange, TxnKind.exchange),
-                        _action(context, 'Reçu', Icons.south_west, TxnKind.received),
-                        _action(context, 'Donné', Icons.north_east, TxnKind.given),
-                        _action(context, 'Dette', Icons.receipt_long, TxnKind.debt),
+                        _action(context, 'Entrée', Icons.south_west, EntryMode.cashIn, Colors.green.shade700),
+                        _action(context, 'Sortie', Icons.north_east, EntryMode.cashOut, Colors.red.shade700),
+                        _action(context, 'Dette', Icons.receipt_long, EntryMode.debt, Colors.orange.shade800),
                       ],
                     ),
                   ),
@@ -138,13 +152,13 @@ class ClientChatScreen extends StatelessWidget {
     );
   }
 
-  Widget _action(BuildContext context, String label, IconData icon, TxnKind kind) {
+  Widget _action(BuildContext context, String label, IconData icon, EntryMode mode, Color color) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: FilledButton.tonal(
-          style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
-          onPressed: () => showTxnForm(context, clientId: clientId, kind: kind, lockClient: true),
+          style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10), foregroundColor: color),
+          onPressed: () => showTxnForm(context, clientId: clientId, mode: mode, lockClient: true),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [Icon(icon, size: 20), const SizedBox(height: 2), Text(label, style: const TextStyle(fontSize: 12))],
@@ -153,6 +167,15 @@ class ClientChatScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _totals(String label, Amounts a, Color color) {
+  final parts = [
+    for (final c in Currency.values)
+      if (a[c] != 0) formatMoney(a[c], c),
+  ];
+  if (parts.isEmpty) return const SizedBox.shrink();
+  return Text('$label : ${parts.join(' · ')}', style: TextStyle(fontSize: 12, color: color));
 }
 
 class _DayChip extends StatelessWidget {

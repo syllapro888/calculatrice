@@ -68,6 +68,21 @@ void main() {
       expect(cash[Currency.xaf], -50000 * 100);
     });
 
+    test('entrées et sorties comptées par devise, sans toucher aux dettes', () {
+      final txns = [
+        _t(TxnKind.cashIn, Currency.xaf, 500000 * 100),
+        _t(TxnKind.cashOut, Currency.eur, 200 * 100),
+        _t(TxnKind.cashIn, Currency.eur, 50 * 100),
+      ];
+      final f = Flows(txns);
+      expect(f.cashIn[Currency.xaf], 500000 * 100);
+      expect(f.cashIn[Currency.eur], 50 * 100);
+      expect(f.cashOut[Currency.eur], 200 * 100);
+      expect(f.net[Currency.eur], -150 * 100);
+      expect(f.cashOut[Currency.usd], 0);
+      expect(sumBalance(txns).isZero, isTrue);
+    });
+
     test('opération supprimée ignorée', () {
       final t = _t(TxnKind.received, Currency.usd, 100)..deleted = true;
       expect(cashEffect(t).isZero, isTrue);
@@ -79,7 +94,7 @@ void main() {
       final s = summarizeDay(opening, [
         _t(TxnKind.exchange, Currency.xaf, 600000 * 100, to: Currency.usd, toAmt: 1000 * 100),
       ]);
-      expect(s.exchangeCount, 1);
+      expect(s.count, 1);
       expect(s.closing[Currency.xaf], 2600000 * 100);
       expect(s.closing[Currency.usd], 2500 * 100);
       expect(s.closing[Currency.eur], 2000 * 100);

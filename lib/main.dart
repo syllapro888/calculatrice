@@ -16,7 +16,7 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final db = await LocalDb.open();
-  final store = await AppStore.load(db, prefs);
+  final store = await AppStore.load(db);
   final sync = SyncService(store, prefs);
   final pin = PinService(prefs);
 

@@ -20,13 +20,15 @@ Amounts cashEffect(Txn t) {
   final a = Amounts();
   if (t.deleted) return a;
   switch (t.kind) {
+    case TxnKind.cashIn:
+    case TxnKind.received:
+      a.add(t.fromCur, t.fromAmt);
+    case TxnKind.cashOut:
+    case TxnKind.given:
+      a.add(t.fromCur, -t.fromAmt);
     case TxnKind.exchange:
       a.add(t.fromCur, t.paidAmt);
       if (t.toCur != null) a.add(t.toCur!, -t.toAmt);
-    case TxnKind.received:
-      a.add(t.fromCur, t.fromAmt);
-    case TxnKind.given:
-      a.add(t.fromCur, -t.fromAmt);
     case TxnKind.debt:
       break;
   }
@@ -39,6 +41,9 @@ Amounts balanceEffect(Txn t) {
   final a = Amounts();
   if (t.deleted) return a;
   switch (t.kind) {
+    case TxnKind.cashIn:
+    case TxnKind.cashOut:
+      break;
     case TxnKind.exchange:
       a.add(t.fromCur, t.fromAmt - t.paidAmt);
     case TxnKind.received:
@@ -55,45 +60,43 @@ Amounts sumCash(Iterable<Txn> txns) => txns.fold(Amounts(), (acc, t) => acc + ca
 
 Amounts sumBalance(Iterable<Txn> txns) => txns.fold(Amounts(), (acc, t) => acc + balanceEffect(t));
 
+/// Entrées et sorties de caisse, séparées par devise.
+class Flows {
+  Flows(Iterable<Txn> txns) {
+    for (final t in txns) {
+      if (t.deleted) continue;
+      count++;
+      final e = cashEffect(t);
+      for (final c in Currency.values) {
+        if (e[c] > 0) cashIn.add(c, e[c]);
+        if (e[c] < 0) cashOut.add(c, -e[c]);
+      }
+    }
+  }
+
+  final cashIn = Amounts();
+  final cashOut = Amounts();
+  int count = 0;
+
+  Amounts get net => Amounts({for (final c in Currency.values) c: cashIn[c] - cashOut[c]});
+}
+
 /// Résumé d'une journée pour le journal.
 class DaySummary {
-  DaySummary({
-    required this.opening,
-    required this.cashIn,
-    required this.cashOut,
-    required this.exchangeCount,
-    required this.newDebt,
-  });
+  DaySummary({required this.opening, required this.flows, required this.newDebt});
 
   final Amounts opening;
-  final Amounts cashIn;
-  final Amounts cashOut;
-  final int exchangeCount;
+  final Flows flows;
 
   /// Dettes créées ou remboursées ce jour-là (variation des soldes clients).
   final Amounts newDebt;
 
+  Amounts get cashIn => flows.cashIn;
+  Amounts get cashOut => flows.cashOut;
+  int get count => flows.count;
+
   Amounts get closing => Amounts({for (final c in Currency.values) c: opening[c] + cashIn[c] - cashOut[c]});
 }
 
-DaySummary summarizeDay(Amounts opening, Iterable<Txn> dayTxns) {
-  final cashIn = Amounts();
-  final cashOut = Amounts();
-  var count = 0;
-  for (final t in dayTxns) {
-    if (t.deleted) continue;
-    if (t.kind == TxnKind.exchange) count++;
-    final e = cashEffect(t);
-    for (final c in Currency.values) {
-      if (e[c] > 0) cashIn.add(c, e[c]);
-      if (e[c] < 0) cashOut.add(c, -e[c]);
-    }
-  }
-  return DaySummary(
-    opening: opening,
-    cashIn: cashIn,
-    cashOut: cashOut,
-    exchangeCount: count,
-    newDebt: sumBalance(dayTxns),
-  );
-}
+DaySummary summarizeDay(Amounts opening, Iterable<Txn> dayTxns) =>
+    DaySummary(opening: opening, flows: Flows(dayTxns), newDebt: sumBalance(dayTxns));
