@@ -21,8 +21,8 @@ class DashboardTab extends StatelessWidget {
     final theme = Theme.of(context);
     final today = dayKey(DateTime.now());
     final summary = store.summaryOf(today);
-    final debts = store.debtTotals;
-    final recent = store.txns.reversed.take(8).toList();
+    // Accueil = caisse seulement. Les dettes ont leur propre page.
+    final recent = store.cashTxns.reversed.take(8).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -66,26 +66,7 @@ class DashboardTab extends StatelessWidget {
             const SizedBox(height: 12),
           ],
 
-          SectionTitle('Dettes', trailing: TextButton(onPressed: () => onOpenTab(1), child: const Text('Clients'))),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Les clients me doivent', style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  AmountChips(amounts: debts.owedToMe),
-                  const SizedBox(height: 12),
-                  Text('Je dois aux clients', style: TextStyle(color: Colors.orange.shade800, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  AmountChips(amounts: debts.iOwe),
-                ],
-              ),
-            ),
-          ),
-
-          SectionTitle('Dernières opérations', trailing: TextButton(onPressed: () => onOpenTab(2), child: const Text('Journal'))),
+          SectionTitle('Dernières opérations', trailing: TextButton(onPressed: () => onOpenTab(3), child: const Text('Journal'))),
           if (recent.isEmpty)
             const Card(child: ListTile(title: Text('Aucune opération pour le moment')))
           else

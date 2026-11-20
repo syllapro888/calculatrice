@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app.dart';
 import 'clients_tab.dart';
 import 'dashboard_tab.dart';
+import 'debts_tab.dart';
 import 'journal_tab.dart';
 import 'opening_screen.dart';
 import 'settings_tab.dart';
@@ -38,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final pages = [
           DashboardTab(onOpenTab: (i) => setState(() => _tab = i)),
           const ClientsTab(),
+          const DebtsTab(),
           const JournalTab(),
           const SettingsTab(),
         ];
@@ -49,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
             destinations: const [
               NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Accueil'),
               NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Clients'),
+              NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Dettes'),
               NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Journal'),
               NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Réglages'),
             ],

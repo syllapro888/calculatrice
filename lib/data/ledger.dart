@@ -15,21 +15,26 @@ class Amounts {
   Amounts operator +(Amounts o) => Amounts({for (final c in Currency.values) c: this[c] + o[c]});
 }
 
+/// Opération du carnet des dettes (dette notée, remboursement reçu ou donné).
+/// Ces opérations restent à part : elles ne comptent jamais dans la caisse ni dans le journal.
+bool isDebtTxn(Txn t) => t.kind == TxnKind.debt || t.kind == TxnKind.received || t.kind == TxnKind.given;
+
 /// Effet d'une opération sur ma caisse (positif = entre dans la caisse).
+/// Les dettes et leurs remboursements n'y touchent pas.
 Amounts cashEffect(Txn t) {
   final a = Amounts();
   if (t.deleted) return a;
   switch (t.kind) {
     case TxnKind.cashIn:
-    case TxnKind.received:
       a.add(t.fromCur, t.fromAmt);
     case TxnKind.cashOut:
-    case TxnKind.given:
       a.add(t.fromCur, -t.fromAmt);
     case TxnKind.exchange:
       a.add(t.fromCur, t.paidAmt);
       if (t.toCur != null) a.add(t.toCur!, -t.toAmt);
     case TxnKind.debt:
+    case TxnKind.received:
+    case TxnKind.given:
       break;
   }
   return a;
@@ -60,11 +65,11 @@ Amounts sumCash(Iterable<Txn> txns) => txns.fold(Amounts(), (acc, t) => acc + ca
 
 Amounts sumBalance(Iterable<Txn> txns) => txns.fold(Amounts(), (acc, t) => acc + balanceEffect(t));
 
-/// Entrées et sorties de caisse, séparées par devise.
+/// Entrées et sorties de caisse, séparées par devise (sans les dettes).
 class Flows {
   Flows(Iterable<Txn> txns) {
     for (final t in txns) {
-      if (t.deleted) continue;
+      if (t.deleted || isDebtTxn(t)) continue;
       count++;
       final e = cashEffect(t);
       for (final c in Currency.values) {
@@ -81,15 +86,12 @@ class Flows {
   Amounts get net => Amounts({for (final c in Currency.values) c: cashIn[c] - cashOut[c]});
 }
 
-/// Résumé d'une journée pour le journal.
+/// Résumé d'une journée pour le journal (caisse seulement, sans les dettes).
 class DaySummary {
-  DaySummary({required this.opening, required this.flows, required this.newDebt});
+  DaySummary({required this.opening, required this.flows});
 
   final Amounts opening;
   final Flows flows;
-
-  /// Dettes créées ou remboursées ce jour-là (variation des soldes clients).
-  final Amounts newDebt;
 
   Amounts get cashIn => flows.cashIn;
   Amounts get cashOut => flows.cashOut;
@@ -99,4 +101,4 @@ class DaySummary {
 }
 
 DaySummary summarizeDay(Amounts opening, Iterable<Txn> dayTxns) =>
-    DaySummary(opening: opening, flows: Flows(dayTxns), newDebt: sumBalance(dayTxns));
+    DaySummary(opening: opening, flows: Flows(dayTxns));

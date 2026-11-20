@@ -67,6 +67,17 @@ class AppStore extends ChangeNotifier {
     return list;
   }
 
+  /// Opérations de caisse seulement (pour l'accueil et le journal) : jamais les dettes.
+  List<Txn> get cashTxns => txns.where((t) => !isDebtTxn(t)).toList();
+
+  /// Opérations du carnet des dettes, de la plus ancienne à la plus récente.
+  /// Comprend aussi les anciens changes payés en partie (le reste était une dette).
+  List<Txn> get debtTxns =>
+      txns.where((t) => isDebtTxn(t) || (t.kind == TxnKind.exchange && t.fromAmt != t.paidAmt)).toList();
+
+  /// Clients qui ont une dette (dans un sens ou dans l'autre).
+  List<Client> get clientsWithDebt => clients.where((c) => !balanceOf(c.id).isZero).toList();
+
   List<Txn> txnsOfClient(String clientId) => txns.where((t) => t.clientId == clientId).toList();
 
   List<Txn> txnsOfDay(String day) => txns.where((t) => dayKey(t.date) == day).toList();
@@ -116,9 +127,9 @@ class AppStore extends ChangeNotifier {
     return summaryOf(days.last).closing;
   }
 
-  /// Jours qui ont une activité (ouverture ou opérations), du plus récent au plus ancien.
+  /// Jours qui ont une activité de caisse (ouverture ou opérations), du plus récent au plus ancien.
   List<String> get activeDays {
-    final set = <String>{..._openings.keys, ...txns.map((t) => dayKey(t.date))};
+    final set = <String>{..._openings.keys, ...cashTxns.map((t) => dayKey(t.date))};
     return set.toList()..sort((a, b) => b.compareTo(a));
   }
 

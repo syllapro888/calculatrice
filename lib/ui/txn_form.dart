@@ -99,8 +99,8 @@ class _TxnFormScreenState extends State<TxnFormScreen> {
     final kind = _kind;
     final signed = kind == TxnKind.debt && _debt == DebtChoice.iOwe ? -amount : amount;
 
-    // Avertit si la caisse du jour devient négative.
-    if ((kind == TxnKind.cashOut || kind == TxnKind.given) &&
+    // Avertit si la caisse du jour devient négative (les dettes n'y touchent pas).
+    if (kind == TxnKind.cashOut &&
         store.todayOpened &&
         dayKey(_date) == dayKey(DateTime.now())) {
       final cash = store.currentCash[_cur];
@@ -140,24 +140,26 @@ class _TxnFormScreenState extends State<TxnFormScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nouvelle opération')),
+      appBar: AppBar(title: Text(_mode == EntryMode.debt ? 'Dette' : 'Caisse')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            SegmentedButton<EntryMode>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: EntryMode.cashIn, label: Text('Entrée'), icon: Icon(Icons.south_west, size: 18)),
-                ButtonSegment(value: EntryMode.cashOut, label: Text('Sortie'), icon: Icon(Icons.north_east, size: 18)),
-                ButtonSegment(value: EntryMode.debt, label: Text('Dette'), icon: Icon(Icons.receipt_long, size: 18)),
-              ],
-              selected: {_mode},
-              onSelectionChanged: (s) => setState(() {
-                _mode = s.first;
-                _error = null;
-              }),
-            ),
+            // Caisse et dettes restent séparées : depuis la caisse on ne choisit
+            // qu'Entrée ou Sortie, depuis les dettes seulement les choix de dette.
+            if (_mode != EntryMode.debt)
+              SegmentedButton<EntryMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: EntryMode.cashIn, label: Text('Entrée'), icon: Icon(Icons.south_west, size: 18)),
+                  ButtonSegment(value: EntryMode.cashOut, label: Text('Sortie'), icon: Icon(Icons.north_east, size: 18)),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (s) => setState(() {
+                  _mode = s.first;
+                  _error = null;
+                }),
+              ),
             const SizedBox(height: 8),
             Text(_help, style: theme.textTheme.bodySmall),
 
@@ -267,13 +269,13 @@ class _TxnFormScreenState extends State<TxnFormScreen> {
   }
 
   String get _help => switch (_mode) {
-        EntryMode.cashIn => 'Argent reçu : il s\'ajoute à votre caisse.',
-        EntryMode.cashOut => 'Argent donné : il sort de votre caisse.',
+        EntryMode.cashIn => 'Argent reçu : il s\'ajoute à votre caisse et au journal.',
+        EntryMode.cashOut => 'Argent donné : il sort de votre caisse et va au journal.',
         EntryMode.debt => switch (_debt) {
-            DebtChoice.heOwes => 'Le client vous doit de l\'argent (la caisse ne change pas).',
-            DebtChoice.iOwe => 'Vous devez de l\'argent au client (la caisse ne change pas).',
-            DebtChoice.heRepaid => 'Le client vous rembourse : l\'argent entre en caisse et sa dette diminue.',
-            DebtChoice.iRepaid => 'Vous remboursez le client : l\'argent sort de la caisse.',
+            DebtChoice.heOwes => 'Le client vous doit de l\'argent. Reste dans la page Dettes (ni caisse, ni journal).',
+            DebtChoice.iOwe => 'Vous devez de l\'argent au client. Reste dans la page Dettes (ni caisse, ni journal).',
+            DebtChoice.heRepaid => 'Le client vous rembourse : sa dette diminue. Reste dans la page Dettes (ni caisse, ni journal).',
+            DebtChoice.iRepaid => 'Vous remboursez le client : votre dette diminue. Reste dans la page Dettes (ni caisse, ni journal).',
           },
       };
 }

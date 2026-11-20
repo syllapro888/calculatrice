@@ -63,9 +63,25 @@ void main() {
       expect(b[Currency.usd], 200 * 100); // me doit encore 200 USD
       expect(b[Currency.eur], -100 * 100); // je lui dois 100 EUR
       expect(b[Currency.xaf], 50000 * 100);
-      final cash = sumCash(txns);
-      expect(cash[Currency.usd], 300 * 100);
-      expect(cash[Currency.xaf], -50000 * 100);
+      // Les dettes restent à part : la caisse ne bouge pas.
+      expect(sumCash(txns).isZero, isTrue);
+      expect(Flows(txns).count, 0);
+    });
+
+    test('les dettes ne se mélangent pas au résumé de journée', () {
+      final opening = Amounts({Currency.xaf: 1000000 * 100, Currency.usd: 500 * 100});
+      final s = summarizeDay(opening, [
+        _t(TxnKind.cashIn, Currency.usd, 200 * 100),
+        _t(TxnKind.debt, Currency.usd, 400 * 100),
+        _t(TxnKind.received, Currency.xaf, 50000 * 100),
+        _t(TxnKind.given, Currency.usd, 100 * 100),
+      ]);
+      expect(s.count, 1);
+      expect(s.cashIn[Currency.usd], 200 * 100);
+      expect(s.cashIn[Currency.xaf], 0);
+      expect(s.cashOut[Currency.usd], 0);
+      expect(s.closing[Currency.usd], 700 * 100);
+      expect(s.closing[Currency.xaf], 1000000 * 100);
     });
 
     test('entrées et sorties comptées par devise, sans toucher aux dettes', () {

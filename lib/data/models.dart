@@ -62,10 +62,10 @@ enum TxnKind {
   /// Ancien type (version 1) : change avec taux. Gardé pour afficher l'historique.
   exchange('exchange', 'Change'),
 
-  /// Le client me rembourse : entre dans la caisse et diminue sa dette.
+  /// Le client me rembourse : diminue sa dette (carnet des dettes, hors caisse).
   received('received', 'Il m\'a remboursé'),
 
-  /// Je rembourse le client (ou je lui prête) : sort de la caisse.
+  /// Je rembourse le client (ou je lui prête) : carnet des dettes, hors caisse.
   given('given', 'Je lui ai remboursé'),
 
   /// Dette notée sans mouvement de caisse. fromAmt > 0 : le client me doit ;

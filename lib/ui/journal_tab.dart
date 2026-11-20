@@ -15,8 +15,7 @@ enum _Period { day, month }
 enum _KindFilter {
   all('Tout'),
   cashIn('Entrées'),
-  cashOut('Sorties'),
-  debt('Dettes');
+  cashOut('Sorties');
 
   const _KindFilter(this.label);
   final String label;
@@ -25,11 +24,11 @@ enum _KindFilter {
         _KindFilter.all => true,
         _KindFilter.cashIn => cashEffect(t).values.values.any((v) => v > 0),
         _KindFilter.cashOut => cashEffect(t).values.values.any((v) => v < 0),
-        _KindFilter.debt => t.kind == TxnKind.debt || t.kind == TxnKind.received || t.kind == TxnKind.given,
       };
 }
 
 /// Journal : jour par jour ou mois par mois, devise par devise, avec recherche.
+/// Seulement la caisse : les dettes sont dans leur propre page.
 class JournalTab extends StatefulWidget {
   const JournalTab({super.key});
 
@@ -73,7 +72,10 @@ class _JournalTabState extends State<JournalTab> {
     final store = Deps.of(context).store;
     final theme = Theme.of(context);
 
-    final periodTxns = _period == _Period.day ? store.txnsOfDay(dayKey(_date)) : store.txnsOfMonth(_date.year, _date.month);
+    // Les dettes ne vont jamais dans le journal.
+    final periodTxns = (_period == _Period.day ? store.txnsOfDay(dayKey(_date)) : store.txnsOfMonth(_date.year, _date.month))
+        .where((t) => !isDebtTxn(t))
+        .toList();
     final txns = periodTxns
         .where((t) => _currency == null || AppStore.touches(t, _currency!))
         .where(_kind.accepts)

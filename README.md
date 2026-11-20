@@ -8,8 +8,8 @@ Application Android (Flutter) qui ressemble à une calculatrice, mais qui cache 
 - **Ouverture du matin** : caisse en FCFA, USD et EUR, et taux du jour (achat / vente).
 - **Clients façon messagerie** : chaque client a sa conversation avec toutes ses opérations et son solde.
 - **Vente de devises** : le taux du jour est proposé et reste modifiable ; paiement partiel possible (le reste devient une dette).
-- **Dettes dans les deux sens** : le client me doit / je dois au client, remboursements, dépôts.
-- **Journal** : récapitulatif de chaque journée (matin, entrées, sorties, soir) et historique de toutes les opérations.
+- **Page Dettes, à part** : le client me doit / je dois au client, remboursements. Les dettes ne comptent jamais dans la caisse ni dans le journal.
+- **Journal** : seulement la caisse (FCFA, USD, EUR) — récapitulatif de chaque journée (matin, entrées, sorties, soir) et historique des entrées et sorties.
 - **Hors ligne d'abord** : tout est enregistré sur le téléphone ; synchro en ligne avec Firebase quand internet est disponible.
 
 ## Installer l'app sur le téléphone
