@@ -29,4 +29,16 @@ if [ -f "$GRADLE" ]; then
   rm -f "$GRADLE.bak"
 fi
 
+# L'analyse « lint » d'Android plante sur certaines versions des modules Firebase
+# (bug de lint, pas de l'app). Elle ne sert à rien pour construire l'APK : on la coupe.
+ROOT_GRADLE=android/build.gradle.kts
+if [ -f "$ROOT_GRADLE" ] && ! grep -q 'lintVital' "$ROOT_GRADLE"; then
+  cat >> "$ROOT_GRADLE" <<'KTS'
+
+subprojects {
+    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }
+}
+KTS
+fi
+
 echo "android/ prêt."
